@@ -1,0 +1,60 @@
+# This .travis.yml was copied from:
+# https://raw.githubusercontent.com/genuinetools/bane/master/.travis.yml
+# ...which was authored by https://github.com/jessfraz
+# Then Ben did a horrible find/replace kind of "refactoring" #pasteops
+language: go
+sudo: false
+go:
+  - 1.10.x
+before_install:
+  - go get github.com/golang/lint/golint
+  - go get honnef.co/go/tools/cmd/staticcheck
+jobs:
+  include:
+    - script: make all
+    - stage: Run Test Coverage
+      script: make cover
+      after_success: bash <(curl -s https://codecov.io/bash)
+    - stage: Build Release
+      script:
+        - make release
+        - echo "Deploying to GitHub releases ..."
+      deploy:
+        provider: releases
+        file:
+          - cross/minica-darwin-amd64
+          - cross/minica-darwin-amd64.md5
+          - cross/minica-darwin-amd64.sha256
+          - cross/minica-darwin-386
+          - cross/minica-darwin-386.md5
+          - cross/minica-darwin-386.sha256
+          - cross/minica-freebsd-amd64
+          - cross/minica-freebsd-amd64.md5
+          - cross/minica-freebsd-amd64.sha256
+          - cross/minica-freebsd-386
+          - cross/minica-freebsd-386.md5
+          - cross/minica-freebsd-386.sha256
+          - cross/minica-linux-arm
+          - cross/minica-linux-arm.md5
+          - cross/minica-linux-arm.sha256
+          - cross/minica-linux-arm64
+          - cross/minica-linux-arm64.md5
+          - cross/minica-linux-arm64.sha256
+          - cross/minica-linux-amd64
+          - cross/minica-linux-amd64.md5
+          - cross/minica-linux-amd64.sha256
+          - cross/minica-linux-386
+          - cross/minica-linux-386.md5
+          - cross/minica-linux-386.sha256
+          - cross/minica-solaris-amd64
+          - cross/minica-solaris-amd64.md5
+          - cross/minica-solaris-amd64.sha256
+          - cross/minica-windows-amd64
+          - cross/minica-windows-amd64.md5
+          - cross/minica-windows-amd64.sha256
+          - cross/minica-windows-386
+          - cross/minica-windows-386.md5
+          - cross/minica-windows-386.sha256
+        skip_cleanup: true
+        on:
+          tags: true
