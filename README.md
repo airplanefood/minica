@@ -68,7 +68,8 @@ make version-bump-patch # this increments the appropriate number in VERSION.txt
 # merge the branch to master
 git checkout master
 make tag
-# enter your pgp key, run the "git push" command that is printed by make
+# you will need to unlock your pgp keychain for signing purposes.
+# run the "git push" command that is printed by make
 ```
 
 At this point a tagged version release will be created on gitlab and travis-ci will automatically push the build artifacts to github.
