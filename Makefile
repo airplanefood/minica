@@ -8,7 +8,7 @@ PREFIX?=$(shell pwd)
 
 # Setup name variables for the package/tool
 NAME := minica
-PKG := github.com/jsha/$(NAME)
+PKG := github.com/airplanefood/$(NAME)
 
 # Set any default go build tags
 BUILDTAGS :=
