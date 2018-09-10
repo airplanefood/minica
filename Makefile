@@ -1,20 +1,18 @@
-# This Makefile was copied from:
+# This Makefile was copied (with modification) from:
 # https://raw.githubusercontent.com/genuinetools/bane/master/Makefile
 # ...which was authored by https://github.com/jessfraz
-# Then Ben did a horrible find/replace kind of "refactoring" #pasteops
 
-# Set an output prefix, which is the local directory if not specified
-PREFIX?=$(shell pwd)
+
+### CONFIG
+
 
 # Setup name variables for the package/tool
 NAME := minica
 PKG := github.com/airplanefood/$(NAME)
 
 # Set any default go build tags
+GO := go
 BUILDTAGS :=
-
-# Set the build dir, where built cross-compiled binaries will be output
-BUILDDIR := ${PREFIX}/cross
 
 # Populate version variables
 # Add to compile time flags
@@ -27,53 +25,106 @@ endif
 CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
+BUILDDIR := builds
 
-# Set our default go compiler
-GO := go
 
-# List the GOOS and GOARCH to build
-GOOSARCHES = $(shell cat .goosarch)
+### PRODUCTIVE TARGETS
+
 
 .PHONY: build
-build: $(NAME) ## Builds a dynamic executable or package
+build: $(NAME) ## Builds a dynamic executable or package (default target)
 
-$(NAME): $(wildcard *.go) $(wildcard */*.go) VERSION.txt
-	@echo "+ $@"
-	$(GO) build -tags "$(BUILDTAGS)" ${GO_LDFLAGS} -o $(NAME) .
 
 .PHONY: static
 static: ## Builds a static executable
 	@echo "+ $@"
-	CGO_ENABLED=0 $(GO) build \
-	            -tags "$(BUILDTAGS) static_build" \
-	            ${GO_LDFLAGS_STATIC} -o $(NAME) .
+	CGO_ENABLED=0 \
+	$(GO) build \
+	  -tags "$(BUILDTAGS) static_build" \
+	  ${GO_LDFLAGS_STATIC} \
+	  -o $(NAME) \
+	  .
 
+
+.PHONY: all
 all: clean build fmt lint test staticcheck vet install ## Runs a clean, build, fmt, lint, test, staticcheck, vet and install
+
+
+.PHONY: release
+release: $(shell sed 's_/_-_g; s_^_builds/minica-_g;' .goosarch) ## Build cross-compiled binaries for target architectures
+
+
+AUTHORS: $(wildcard *.go) $(wildcard */*.go) VERSION.txt ## Generate the AUTHORS file from the git log
+	@echo "+ $@"
+	@printf '%s\n' \
+	  '# This file lists everyone with commits to this repository (sorted alphabetically).' \
+	  '# It is automatically updated with the `make AUTHORS` command.' \
+	  "$$(git log --format='%aN <%aE>' | LC_ALL=C.UTF-8 sort -uf)" \
+	  | tee $@
+
+
+### DYNAMIC PRODUCTIVE TARGETS
+
+
+# matches yourprogram
+$(NAME): $(wildcard *.go) $(wildcard */*.go) VERSION.txt
+	@echo "+ $@"
+	$(GO) build \
+	  -tags "$(BUILDTAGS)" \
+	  ${GO_LDFLAGS} \
+	  -o $(NAME) \
+	  .
+
+
+# matches targets like "builds/yourprogram-linux-amd64"
+$(BUILDDIR)/% $(BUILDDIR)/%.md5 $(BUILDDIR)/%.sha256 : $(wildcard *.go) $(wildcard */*.go) VERSION.txt
+	GOOS=$$(printf '%s' "$@" | cut -f 2 -d '-') \
+	GOARCH=$$(printf '%s' "$@" | cut -f 3 -d '-') \
+	CGO_ENABLED=0 \
+	$(GO) build \
+	  -a \
+	  -tags "$(BUILDTAGS) static_build netgo" \
+	  -installsuffix netgo \
+	  ${GO_LDFLAGS_STATIC} \
+	  -o "$@" \
+	  .
+	@md5sum "$@" | tee "$@.md5"
+	@sha256sum "$@" | tee "$@.sha256"
+	@printf '\n\n'
+
+
+### UTIL TARGETS
+
 
 .PHONY: fmt
 fmt: ## Verifies all files have been `gofmt`ed
 	@echo "+ $@"
 	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
 
+
 .PHONY: lint
 lint: ## Verifies `golint` passes
 	@echo "+ $@"
 	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+
 
 .PHONY: test
 test: ## Runs the go tests
 	@echo "+ $@"
 	@$(GO) test -v -tags "$(BUILDTAGS) cgo" $(shell $(GO) list ./... | grep -v vendor)
 
+
 .PHONY: vet
 vet: ## Verifies `go vet` passes
 	@echo "+ $@"
 	@$(GO) vet $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
 
+
 .PHONY: staticcheck
 staticcheck: ## Verifies `staticcheck` passes
 	@echo "+ $@"
 	@staticcheck $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+
 
 .PHONY: cover
 cover: ## Runs go test with coverage
@@ -86,69 +137,49 @@ cover: ## Runs go test with coverage
 	    fi; \
 	done;
 
+
 .PHONY: install
 install: ## Installs the executable or package
 	@echo "+ $@"
 	$(GO) install -a -tags "$(BUILDTAGS)" ${GO_LDFLAGS} .
 
-define buildpretty
-mkdir -p $(BUILDDIR)/$(1)/$(2);
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 $(GO) build \
-	 -o $(BUILDDIR)/$(1)/$(2)/$(NAME) \
-	 -a -tags "$(BUILDTAGS) static_build netgo" \
-	 -installsuffix netgo ${GO_LDFLAGS_STATIC} .;
-md5sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).md5;
-sha256sum $(BUILDDIR)/$(1)/$(2)/$(NAME) > $(BUILDDIR)/$(1)/$(2)/$(NAME).sha256;
-endef
 
-.PHONY: cross
-cross: *.go VERSION.txt ## Builds the cross-compiled binaries, creating a clean directory structure (eg. GOOS/GOARCH/binary)
+.PHONY: version-bump-major
+version-bump-major: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v2.2.3
 	@echo "+ $@"
-	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildpretty,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
+	@NEW=$$(awk -F '.' '{ print "v" substr($$1,2)+1 "." $$2 "." $$3 }' VERSION.txt) \
+	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
 
-define buildrelease
-GOOS=$(1) GOARCH=$(2) CGO_ENABLED=0 $(GO) build \
-	 -o $(BUILDDIR)/$(NAME)-$(1)-$(2) \
-	 -a -tags "$(BUILDTAGS) static_build netgo" \
-	 -installsuffix netgo ${GO_LDFLAGS_STATIC} .;
-md5sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).md5;
-sha256sum $(BUILDDIR)/$(NAME)-$(1)-$(2) > $(BUILDDIR)/$(NAME)-$(1)-$(2).sha256;
-endef
 
-.PHONY: release
-release: *.go VERSION.txt ## Builds the cross-compiled binaries, naming them in such a way for release (eg. binary-GOOS-GOARCH)
+.PHONY: version-bump-minor
+version-bump-minor: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v1.3.3
 	@echo "+ $@"
-	$(foreach GOOSARCH,$(GOOSARCHES), $(call buildrelease,$(subst /,,$(dir $(GOOSARCH))),$(notdir $(GOOSARCH))))
+	@NEW=$$(awk -F '.' '{ print $$1 "." $$2+1 "." $$3 }' VERSION.txt) \
+	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
 
-.PHONY: bump-version
-BUMP := patch
-bump-version: ## Bump the version in the version file. Set BUMP to [ patch | major | minor ]
-	@$(GO) get -u github.com/jessfraz/junk/sembump # update sembump tool
-	$(eval NEW_VERSION = $(shell sembump --kind $(BUMP) $(VERSION)))
-	@echo "Bumping VERSION.txt from $(VERSION) to $(NEW_VERSION)"
-	echo $(NEW_VERSION) > VERSION.txt
-	@echo "Updating links to download binaries in README.md"
-	sed -i s/$(VERSION)/$(NEW_VERSION)/g README.md
-	git add VERSION.txt README.md
-	git commit -vsam "Bump version to $(NEW_VERSION)"
-	@echo "Run make tag to create and push the tag for new version $(NEW_VERSION)"
+
+.PHONY: version-bump-patch
+version-bump-patch: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v1.2.4
+	@echo "+ $@"
+	@NEW=$$(awk -F '.' '{ print $$1 "." $$2 "." $$3+1 }' VERSION.txt) \
+	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
+
 
 .PHONY: tag
 tag: ## Create a new git tag to prepare to build a release
+	@echo "+ $@"
 	git tag -sa $(VERSION) -m "$(VERSION)"
-	@echo "Run git push origin $(VERSION) to push your new tag to GitHub and trigger a travis build."
+	@printf '%s\n' \
+	  "To push your new tag to GitHub and trigger a travis build, run:" \
+	  "git push origin $(VERSION)"
 
-.PHONY: AUTHORS
-AUTHORS:
-	@$(file >$@,# This file lists all individuals having contributed content to the repository.)
-	@$(file >>$@,# For how it is generated, see `make AUTHORS`.)
-	@echo "$(shell git log --format='\n%aN <%aE>' | LC_ALL=C.UTF-8 sort -uf)" >> $@
 
 .PHONY: clean
 clean: ## Cleanup any build binaries or packages
 	@echo "+ $@"
 	$(RM) $(NAME)
 	$(RM) -r $(BUILDDIR)
+
 
 .PHONY: help
 help:
