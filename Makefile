@@ -93,19 +93,25 @@ $(BUILDDIR)/% $(BUILDDIR)/%.md5 $(BUILDDIR)/%.sha256 : $(wildcard *.go) $(wildca
 	@printf '\n\n'
 
 
-### UTIL TARGETS
+### VALIDATION TARGETS
 
 
 .PHONY: fmt
 fmt: ## Verifies all files have been `gofmt`ed
 	@echo "+ $@"
-	@gofmt -s -l . | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+	@gofmt -s -l . 2>&1 \
+	  | grep -Ev '(.pb.go:|vendor)' \
+	  | tee /dev/stderr \
+	  | [ "$$(wc -c)" = "0" ]
 
 
 .PHONY: lint
 lint: ## Verifies `golint` passes
 	@echo "+ $@"
-	@golint ./... | grep -v '.pb.go:' | grep -v vendor | tee /dev/stderr
+	@golint ./... 2>&1 \
+	  | grep -Ev '(.pb.go:|vendor)' \
+	  | tee /dev/stderr \
+	  | [ "$$(wc -c)" = "0" ]
 
 
 .PHONY: test
@@ -117,25 +123,33 @@ test: ## Runs the go tests
 .PHONY: vet
 vet: ## Verifies `go vet` passes
 	@echo "+ $@"
-	@$(GO) vet $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+	@$(GO) vet $(shell $(GO) list ./... | grep -v vendor) \
+	  | grep -Ev '(.pb.go:|vendor)' \
+	  | tee /dev/stderr \
+	  | [ "$$(wc -c)" = "0" ]
 
 
 .PHONY: staticcheck
 staticcheck: ## Verifies `staticcheck` passes
 	@echo "+ $@"
-	@staticcheck $(shell $(GO) list ./... | grep -v vendor) | grep -v '.pb.go:' | tee /dev/stderr
+	@staticcheck $(shell $(GO) list ./... | grep -v vendor) \
+	  | grep -Ev '(.pb.go:|vendor)' \
+	  | tee /dev/stderr \
+	  | [ "$$(wc -c)" = "0" ]
 
 
 .PHONY: cover
 cover: ## Runs go test with coverage
 	@echo "" > coverage.txt
 	@for d in $(shell $(GO) list ./... | grep -v vendor); do \
-	    $(GO) test -race -coverprofile=profile.out -covermode=atomic "$$d"; \
-	    if [ -f profile.out ]; then \
-	        cat profile.out >> coverage.txt; \
-	        rm profile.out; \
-	    fi; \
+	  $(GO) test -race -coverprofile=profile.out -covermode=atomic "$$d"; \
+	  [ -f profile.out ] || continue; \
+	  cat profile.out >> coverage.txt; \
+	  rm profile.out; \
 	done;
+
+
+### UTILITY TARGETS
 
 
 .PHONY: install
@@ -145,21 +159,21 @@ install: ## Installs the executable or package
 
 
 .PHONY: version-bump-major
-version-bump-major: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v2.2.3
+version-bump-major: ## Increment the major version number in VERSION.txt, e.g. v1.2.3 -> v2.2.3
 	@echo "+ $@"
 	@NEW=$$(awk -F '.' '{ print "v" substr($$1,2)+1 "." $$2 "." $$3 }' VERSION.txt) \
 	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
 
 
 .PHONY: version-bump-minor
-version-bump-minor: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v1.3.3
+version-bump-minor: ## Increment the minor version number in VERSION.txt, e.g. v1.2.3 -> v1.3.3
 	@echo "+ $@"
 	@NEW=$$(awk -F '.' '{ print $$1 "." $$2+1 "." $$3 }' VERSION.txt) \
 	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
 
 
 .PHONY: version-bump-patch
-version-bump-patch: ## Increment the patch number in VERSION.txt, e.g. v1.2.3 -> v1.2.4
+version-bump-patch: ## Increment the patch version number in VERSION.txt, e.g. v1.2.3 -> v1.2.4
 	@echo "+ $@"
 	@NEW=$$(awk -F '.' '{ print $$1 "." $$2 "." $$3+1 }' VERSION.txt) \
 	  ; printf '%s\n' "$$NEW" | tee VERSION.txt
