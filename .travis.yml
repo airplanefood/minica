@@ -18,30 +18,30 @@ jobs:
     deploy:
       provider: releases
       file:
-      - cross/minica-darwin-amd64
-      - cross/minica-darwin-amd64.md5
-      - cross/minica-darwin-amd64.sha256
-      - cross/minica-freebsd-amd64
-      - cross/minica-freebsd-amd64.md5
-      - cross/minica-freebsd-amd64.sha256
-      - cross/minica-freebsd-386
-      - cross/minica-freebsd-386.md5
-      - cross/minica-freebsd-386.sha256
-      - cross/minica-linux-arm
-      - cross/minica-linux-arm.md5
-      - cross/minica-linux-arm.sha256
-      - cross/minica-linux-arm64
-      - cross/minica-linux-arm64.md5
-      - cross/minica-linux-arm64.sha256
-      - cross/minica-linux-amd64
-      - cross/minica-linux-amd64.md5
-      - cross/minica-linux-amd64.sha256
-      - cross/minica-linux-386
-      - cross/minica-linux-386.md5
-      - cross/minica-linux-386.sha256
-      - cross/minica-windows-amd64
-      - cross/minica-windows-amd64.md5
-      - cross/minica-windows-amd64.sha256
+      - builds/minica-darwin-amd64
+      - builds/minica-darwin-amd64.md5
+      - builds/minica-darwin-amd64.sha256
+      - builds/minica-freebsd-amd64
+      - builds/minica-freebsd-amd64.md5
+      - builds/minica-freebsd-amd64.sha256
+      - builds/minica-freebsd-386
+      - builds/minica-freebsd-386.md5
+      - builds/minica-freebsd-386.sha256
+      - builds/minica-linux-arm
+      - builds/minica-linux-arm.md5
+      - builds/minica-linux-arm.sha256
+      - builds/minica-linux-arm64
+      - builds/minica-linux-arm64.md5
+      - builds/minica-linux-arm64.sha256
+      - builds/minica-linux-amd64
+      - builds/minica-linux-amd64.md5
+      - builds/minica-linux-amd64.sha256
+      - builds/minica-linux-386
+      - builds/minica-linux-386.md5
+      - builds/minica-linux-386.sha256
+      - builds/minica-windows-amd64
+      - builds/minica-windows-amd64.md5
+      - builds/minica-windows-amd64.sha256
       skip_cleanup: true
       on:
         tags: true
