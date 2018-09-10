@@ -1,0 +1,49 @@
+language: go
+sudo: false
+go:
+- 1.10.x
+before_install:
+- go get github.com/golang/lint/golint
+- go get honnef.co/go/tools/cmd/staticcheck
+jobs:
+  include:
+  - script: make all
+  - stage: Run Test Coverage
+    script: make cover
+    after_success: bash <(curl -s https://codecov.io/bash)
+  - stage: Build Release
+    script:
+    - make release
+    - echo "Deploying to GitHub releases ..."
+    deploy:
+      provider: releases
+      file:
+      - builds/minica-darwin-amd64
+      - builds/minica-darwin-amd64.md5
+      - builds/minica-darwin-amd64.sha256
+      - builds/minica-freebsd-amd64
+      - builds/minica-freebsd-amd64.md5
+      - builds/minica-freebsd-amd64.sha256
+      - builds/minica-freebsd-386
+      - builds/minica-freebsd-386.md5
+      - builds/minica-freebsd-386.sha256
+      - builds/minica-linux-arm
+      - builds/minica-linux-arm.md5
+      - builds/minica-linux-arm.sha256
+      - builds/minica-linux-arm64
+      - builds/minica-linux-arm64.md5
+      - builds/minica-linux-arm64.sha256
+      - builds/minica-linux-amd64
+      - builds/minica-linux-amd64.md5
+      - builds/minica-linux-amd64.sha256
+      - builds/minica-linux-386
+      - builds/minica-linux-386.md5
+      - builds/minica-linux-386.sha256
+      - builds/minica-windows-amd64
+      - builds/minica-windows-amd64.md5
+      - builds/minica-windows-amd64.sha256
+      skip_cleanup: true
+      on:
+        tags: true
+      api_key:
+        secure: oX7Ga515xm4AxGwqiN0oEHRkyFS2Ay/l3P5/yQpUh9kJ5vj921jcqxMO4DaZf5Bd0UFbUvATNHzhRT2rsC6MFrX0APnyT+E6Pz38wSQo18372EZUaDfSkoPJvW5j+VWkXrLxQhStR7NVcz754/UPSph76r/o6ZepRTPb1ortw/IRsYbYq+wFFasR0TH5THbvh++TUkUGmyHT+5Uf79sJTGiBWJdbw7/LdUTa+v2GWjMENlZZy4o9qOLknNti2H9I6hKQE19iaGee7L51cY17xCttd6oQ7EfCqf4a1pcsfvCBSn+V9b/XKzG5trRN4ExPZCvolOUQ+MyirJT8pg6TeTNNxElqKMSkfU2iteTEpGb1mI+AZqLLt/w5zyf36FFS65FE1/gHVCRQQRFgFrW6wZW2kZwEDxQi5JSxp1UWqTcCk9zZwSaMfIRvzX/e1R7ZO+Vpe62b3c3pJi4Ql5WITY+mL/lTE3mUY6jIDL22+XfVX8JJMD5v1z+Z5sLhigupbBxKAU16oAUIdKJ6mQ2WBr3jOlC+4qvuryv64sfQiQaqyxwMSFairfSHN8e116JcwUW382Oh973O2X4rGErV6qt6vePh4/NDvf+guUhFmOTGYkRYl+pBqWA2kh5b7GtmP64llruaZ+aj6iGIS6Q5SDzf8KBLSaIkzdAXQEDnzRs=
