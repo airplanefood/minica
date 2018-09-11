@@ -9,6 +9,12 @@
 # Setup name variables for the package/tool
 NAME := minica
 PKG := github.com/airplanefood/$(NAME)
+TARGETS := $(shell for osarch in \
+               darwin-amd64 \
+               freebsd-386 freebsd-amd64 \
+               linux-386 linux-amd64 linux-arm linux-arm64 \
+               windows-amd64; \
+             do echo "builds/$(NAME)-$$osarch"; done)
 
 # Set any default go build tags
 GO := go
@@ -22,7 +28,7 @@ GITUNTRACKEDCHANGES := $(shell git status --porcelain --untracked-files=no)
 ifneq ($(GITUNTRACKEDCHANGES),)
 	GITCOMMIT := $(GITCOMMIT)-dirty
 endif
-CTIMEVAR=-X $(PKG)/version.GITCOMMIT=$(GITCOMMIT) -X $(PKG)/version.VERSION=$(VERSION)
+CTIMEVAR=-X main.GITCOMMIT=$(GITCOMMIT) -X main.VERSION=$(VERSION)
 GO_LDFLAGS=-ldflags "-w $(CTIMEVAR)"
 GO_LDFLAGS_STATIC=-ldflags "-w $(CTIMEVAR) -extldflags -static"
 BUILDDIR := builds
@@ -51,7 +57,7 @@ all: clean build fmt lint test staticcheck vet install ## Runs a clean, build, f
 
 
 .PHONY: release
-release: $(shell sed 's_/_-_g; s_^_builds/minica-_g;' .goosarch) ## Build cross-compiled binaries for target architectures
+release: $(TARGETS) ## Build cross-compiled binaries for target architectures
 
 
 AUTHORS: $(wildcard *.go) $(wildcard */*.go) VERSION.txt ## Generate the AUTHORS file from the git log
